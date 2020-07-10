@@ -15,6 +15,11 @@ add_custom_command (OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/src/shader_manager/shader
 		    ${CMAKE_CURRENT_SOURCE_DIR}/src/shader_manager/shader_manager.topatch
                     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/)
 
+add_custom_target(
+  BuildDocs ALL
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/shader_manager/shader_manager.hpp
+)
+
 # Add standard switches
 add_compile_options("-Wall")
 add_compile_options("-Wextra")
@@ -31,11 +36,6 @@ include_directories("include")
 include_directories("src/shader_manager")
 
 add_custom_target(run "./wolf3d")
-
-add_custom_target(
-  BuildDocs ALL
-  DEPENDS out
-)
 
 set(WOLF3D_SRCS
 ${PROJECT_SOURCE_DIR}/src/main.cpp 

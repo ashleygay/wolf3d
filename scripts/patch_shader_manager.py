@@ -11,9 +11,17 @@ import sys
 import fileinput
 
 shaders_directory = sys.argv[1]
-file_to_patch = sys.argv[2]
+file_to_patch_name = sys.argv[2]
+patched_file_name = file_to_patch_name.replace("topatch", "hpp")
 
-with fileinput.FileInput(file_to_patch, inplace=True, backup='.bak') as file:
-    for line in file:
-        print(line.replace("@@SIZE@@", "1"), end='')
-        print(line.replace("@@ARRAY@@", "\"Hello there\""), end='')
+with open(file_to_patch_name, 'r') as file_to_patch,\
+     open(patched_file_name, 'w') as patched_file:
+
+         line = file_to_patch.readline()
+         while line :
+            print("line before subst :"  + line)
+            line = line.replace('@@ARRAY_SIZE@@', '1')
+            line = line.replace('@@SHADERS@@', '\"Hello there\"')
+            print("line after subst  :"  + line)
+            patched_file.write(line)
+            line = file_to_patch.readline()

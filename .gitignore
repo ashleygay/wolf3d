@@ -1,0 +1,6 @@
+Makefile
+CMakeFiles/
+CMakeCache.txt
+wolf3d
+cmake_install.cmake
+src/shader_manager/shader_manager.hpp

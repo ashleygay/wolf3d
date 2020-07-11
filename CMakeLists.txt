@@ -9,15 +9,20 @@ set(CMAKE_CXX_STANDARD 20)
 set(SHADERS_DIRECTORY, /home/ferryk/projects/wolf3d/shaders)
 set(SCRIPTS_DIRECTORY, ${CMAKE_CURRENT_SOURCE_DIR}/scripts)
 
-add_custom_command (OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/src/shader_manager/shader_manager.hpp
-	            COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/patch_shader_manager.py 
+set(SHADER_MANAGER_HEADER ${CMAKE_CURRENT_SOURCE_DIR}/src/shader_manager/shader_manager.hpp)
+
+add_custom_command (OUTPUT "${SHADER_MANAGER_HEADER}"
+	            COMMAND
+		    ${CMAKE_CURRENT_SOURCE_DIR}/scripts/patch_shader_manager.py
 		    ${CMAKE_CURRENT_SOURCE_DIR}/shaders
 		    ${CMAKE_CURRENT_SOURCE_DIR}/src/shader_manager/shader_manager.topatch
                     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/)
 
 add_custom_target(
-  BuildDocs ALL
-  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/shader_manager/shader_manager.hpp
+  patch_shader_manager
+  ALL
+  DEPENDS "${SHADER_MANAGER_HEADER}"
+  COMMENT "Hello there !!!!"
 )
 
 # Add standard switches
@@ -41,5 +46,7 @@ set(WOLF3D_SRCS
 ${PROJECT_SOURCE_DIR}/src/main.cpp 
 ${PROJECT_SOURCE_DIR}/src/shader_manager/src/shader_manager.cpp
 )
+
+
 # add the executable
-add_executable(wolf3d "${WOLF3D_SRCS}")
+add_executable(wolf3d "${WOLF3D_SRCS}" "${SHADER_MANAGER_HEADER}")

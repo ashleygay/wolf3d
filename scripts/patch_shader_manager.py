@@ -19,9 +19,7 @@ with open(file_to_patch_name, 'r') as file_to_patch,\
 
          line = file_to_patch.readline()
          while line :
-            print("line before subst :"  + line)
             line = line.replace('@@ARRAY_SIZE@@', '1')
             line = line.replace('@@SHADERS@@', '\"Hello there\"')
-            print("line after subst  :"  + line)
             patched_file.write(line)
             line = file_to_patch.readline()

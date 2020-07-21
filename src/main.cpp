@@ -1,5 +1,6 @@
 /* C++ includes */
 #include <iostream>
+#include <cassert>
 
 /* OpenGL includes */
 
@@ -35,34 +36,22 @@ void processInput(GLFWwindow *window)
 
 int main()
 {
-
-    Shader_Manager m;
-    std::cout << "Hello there" << std::endl;
     std::cout << "Hello there" << std::endl;
     glfwInit();
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     // Pyramid like triangle
-    float vertices[] = {
+    std::vector<float> vertices = {
         -0.5f, -0.5f, 0.0f,
         0.5f, -0.5f, 0.0f,
         0.0f,0.5f, 0.0f,
     };
 
-  // Generate a buffer and buffer ID.
-    unsigned int VBO;
-    glGenBuffers(1, &VBO);
-
-  // Bind the newly created buffer to an array,.
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-
-  // Copy the vertex data into the buffer memory.
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-
-    // Initialize vertex shader
+    auto triangle = Vertex_Shader(vertices, Shaders::basic_shader);
+    auto success = triangle.compile_shader();
+    assert(success);
 
     GLFWwindow* window = glfwCreateWindow(800, 600, "LearnOpenGL", NULL, NULL);
     if (window == NULL)
@@ -75,6 +64,10 @@ int main()
     glViewport(0,0,800,600);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
+    /* Shaders setup */
+
+
+    /* Main loop */
     while(!glfwWindowShouldClose(window))
     {
         processInput(window);

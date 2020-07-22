@@ -33,7 +33,7 @@ class Abstract_Shader
         GL_ID get_shader_id() const { return _shader;} 
         void set_code(const std::string& code) { _code = code;}
 
-        int compile_shader() const
+        int compile() const
         {
             int success;
 
@@ -80,7 +80,7 @@ class Vertex_Shader : public Abstract_Shader
         GLenum usage = GL_STATIC_DRAW;
 };
 
-class Fragment_Shader : Abstract_Shader
+class Fragment_Shader : public Abstract_Shader
 {
     public:
         Fragment_Shader(const std::string &code)
@@ -124,6 +124,4 @@ class Program_Shader
         GL_ID prog;
 };
 
-namespace Shaders {
 @@SHADERS@@
-};

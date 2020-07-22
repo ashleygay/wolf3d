@@ -20,7 +20,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
     glViewport(0, 0, width, height);
 }
 
-static double color = 0.3f;
+static double current_color = 0.3f;
 
 void processInput(GLFWwindow *window)
 {
@@ -28,10 +28,10 @@ void processInput(GLFWwindow *window)
         glfwSetWindowShouldClose(window, true);
 
     if(glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
-        color += 0.01f;
+        current_color += 0.01f;
 
     if(glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
-        color -= 0.01f;
+        current_color -= 0.01f;
 }
 
 int main()
@@ -49,9 +49,18 @@ int main()
         0.0f,0.5f, 0.0f,
     };
 
-    auto triangle = Vertex_Shader(vertices, Shaders::basic_shader);
-    auto success = triangle.compile_shader();
-    assert(success);
+    /* Shaders setup */
+    auto triangle = Vertex_Shader(vertices, Shaders::basic);
+    assert(triangle.compile());
+
+    auto color = Fragment_Shader(Shaders::Fragments::yellow);
+    assert(color.compile());
+
+    Program_Shader p;
+    p.attach_shader(triangle);
+    p.attach_shader(color);
+    assert(p.link());
+    p.use();
 
     GLFWwindow* window = glfwCreateWindow(800, 600, "LearnOpenGL", NULL, NULL);
     if (window == NULL)
@@ -64,19 +73,16 @@ int main()
     glViewport(0,0,800,600);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
-    /* Shaders setup */
-
-
     /* Main loop */
     while(!glfwWindowShouldClose(window))
     {
         processInput(window);
-        glClearColor(0.2f, color, 0.3f, 1.0f);
+        glClearColor(0.2f, current_color, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
-        std::cout << "Color : " << color << std::endl;
+        std::cout << "Color : " << current_color << std::endl;
     }
 
     glfwTerminate();

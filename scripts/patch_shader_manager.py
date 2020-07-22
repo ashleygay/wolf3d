@@ -13,13 +13,14 @@ IMPORTS
 import sys
 import fileinput
 import glob
+import os
 from typing import List
 
 """
 FUNCTIONS
 """
-def get_shaders(shaders_directory: str) -> List[str]:
-    return (glob.glob(shaders_directory + "/*.glsl"))
+def get_formatted_declaration(name: str, code: str) -> str:
+    return "std::string %s = \"%s\";\n" % (name, escape(code))
 
 def get_shader_code(shader_file: str) -> str:
     with open(shader_file, 'r') as file:
@@ -34,8 +35,24 @@ def escape(s: str) -> str:
                                           "$":  r"\$",\
                                           "*":  r"\*"}))
 
-def get_formatted_array(name: str, code: str) -> str:
-    return "\tstd::string %s = \"%s\";" % (name, escape(code))
+def get_shader_decl_from_file(f: str) -> str:
+    return get_formatted_declaration(os.path.basename(f).split(".", 1)[0],\
+                                     escape(get_shader_code(f)))
+
+def get_shaders(shaders_directory: str) -> str:
+    text = ""
+    indent = ""
+    for root, dirs, files in os.walk(shaders_directory):
+        namespace = os.path.basename(root).capitalize()
+        text = text + ("%snamespace %s {\n" % (indent, namespace))
+        indent = indent + '\t'
+        for f in files:
+            text = text + ("%s" % indent)
+            text = text + get_shader_decl_from_file(os.path.join(root, f))
+    while indent != "":
+        text = text + ("%s};\n" % indent)
+        indent = indent[:-1]
+    return text
 
 """
 CODE
@@ -46,24 +63,12 @@ shader_files = get_shaders(shaders_directory)
 file_to_patch_name = sys.argv[2]
 patched_file_name = file_to_patch_name.replace("topatch", "hpp")
 
-print(shader_files)
-
-shaders = [\
-            get_formatted_array(\
-                name=shader_file.split("/")[-1].split(".", 1)[0],\
-                code=get_shader_code(shader_file)\
-                )\
-           for shader_file in shader_files]
-
-shaders = "\n".join(shaders)
+shaders = get_shaders(shaders_directory)
 
 with open(file_to_patch_name, 'r') as file_to_patch,\
      open(patched_file_name, 'w') as patched_file:
-
          line = file_to_patch.readline()
          while line :
-            #line = line.replace('@@ARRAY_SIZE@@', str(len(shaders)))
-            shader_arrays = []
             line = line.replace('@@SHADERS@@', shaders)
             patched_file.write(line)
             line = file_to_patch.readline()

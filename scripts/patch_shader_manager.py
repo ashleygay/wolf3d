@@ -27,13 +27,7 @@ def get_shader_code(shader_file: str) -> str:
         return file.read()
 
 def escape(s: str) -> str:
-     return s.translate(str.maketrans({"-":  r"\-",\
-                                          "]":  r"\]",\
-                                          "\\": r"\\",\
-                                          "\n": r"\\n",\
-                                          "^":  r"\^",\
-                                          "$":  r"\$",\
-                                          "*":  r"\*"}))
+    return s.translate(str.maketrans({"\n": r"\n",}))
 
 def get_shader_decl_from_file(f: str) -> str:
     return get_formatted_declaration(os.path.basename(f).split(".", 1)[0],\

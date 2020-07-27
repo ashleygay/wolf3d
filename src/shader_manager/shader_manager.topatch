@@ -1,5 +1,7 @@
 #include <string>
 #include <vector>
+#include <stack>
+#include <array>
 
 #include <cstring>
 
@@ -52,32 +54,115 @@ class Abstract_Shader
             return log;
         }
 
+        //TODO: Put delete in the destructor.
+
     private:
         const GL_ID _shader;
         std::string _code;
 };
 
-template <typename Float = float,
-      typename Container = std::vector<Float>>
+template <typename T>
+concept Floating_Point = std::is_floating_point_v<T>;
+
+template <Floating_Point F = float,
+          size_t Dimensions = 3>
+class Point
+{
+    using Container = std::array<F, Dimensions>;
+    public:
+        constexpr Point(const Container& coordinates)
+            : _coordinates(coordinates)
+        {}
+
+        constexpr Point(const F& x, const F& y, const F& z)
+            : _coordinates({x, y , z})
+        {}
+    private:
+        const Container _coordinates;
+};
+
+template <typename P, size_t _Sides = 3>
+class Shape
+{
+    using Container = std::array<P, _Sides>;
+    public:
+        template <typename ...Arg>
+        Shape(Arg&& ...arguments)
+            : points({std::move(arguments)...})
+        {
+        }
+        
+    static const size_t Nb_Of_Sides = _Sides; 
+    private:
+
+        const Container points;
+};
+
+template <typename F>
+struct GL_ENUM
+{
+    static const GLenum value;
+};
+
+template <>
+struct GL_ENUM<float>
+{
+    static const GLenum value = GL_FLOAT;
+};
+
+template <>
+struct GL_ENUM<double>
+{
+    static const GLenum value = GL_DOUBLE;
+};
+
+template <>
+struct GL_ENUM<short>
+{
+    static const GLenum value = GL_HALF_FLOAT;
+};
+
+//TODO: Template by a type of shape.
+template <Floating_Point f = float>
 class Vertex_Shader : public Abstract_Shader
 {
+    using Container = std::vector<f>;
     public:
         Vertex_Shader(const Container &vertices, const std::string& code)
             : Abstract_Shader(glCreateShader(GL_VERTEX_SHADER), code)
         {
-            this->vertices = vertices;
+            _vertices = vertices;
+            glGenVertexArrays(1, &VAO);
             glGenBuffers(1, &VBO);
-            glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
+            glBindVertexArray(VAO);
+
+            //TODO: replace by sizeof(Point.underlying_array)
+            int buffer_size = vertices.size() * sizeof(f);
             // This will copy the data into the currently bound buffer, so in
             // our case, VBO.
-            glBufferData(GL_ARRAY_BUFFER, vertices.size(), vertices.data(), usage);
+            glBindBuffer(GL_ARRAY_BUFFER, VBO);
+            glBufferData(GL_ARRAY_BUFFER, buffer_size, _vertices.data(), GL_STATIC_DRAW);
+
+            int vertex_stride = 3 * sizeof(f);
+            //TODO: replace 3 by Shape::Nb_Of_Sides
+            int components_nb = 3;
+            glVertexAttribPointer(0, components_nb, GL_ENUM<f>::value, GL_FALSE, vertex_stride, nullptr);
+            glEnableVertexAttribArray(0);
+
+            glBindBuffer(GL_ARRAY_BUFFER, 0);
+            glBindVertexArray(0);
         }
 
+        GL_ID get_VAO() const {return VAO;}
     private:
+        /* TODO: Do we want to create another GL_ID class that we could
+         * constify here and that would itself call glGen*() ?
+         */
         GL_ID VBO;
-        Container vertices;
-        GLenum usage = GL_STATIC_DRAW;
+        GL_ID VAO;
+
+        Container _vertices;
 };
 
 class Fragment_Shader : public Abstract_Shader
@@ -101,9 +186,30 @@ class Program_Shader
             glAttachShader(prog, shader.get_shader_id());
         }
 
+        void detach_shader(const Abstract_Shader &shader)
+        {
+            glDetachShader(prog, shader.get_shader_id());
+        }
+
+        void delete_shader(const Abstract_Shader &shader)
+        {
+            glDeleteShader(shader.get_shader_id());
+        }
+
+        void set_VAO(const Vertex_Shader<float> &shader)
+        {
+            VAO = shader.get_VAO();
+        }
+
         void use()
         {
             glUseProgram(prog);
+        }
+
+        void draw()
+        {
+            glBindVertexArray(VAO);
+            glDrawArrays(GL_TRIANGLES, 0, 3);
         }
 
         int link()
@@ -122,6 +228,7 @@ class Program_Shader
         }
     private:
         GL_ID prog;
+        GL_ID VAO;
 };
 
 @@SHADERS@@

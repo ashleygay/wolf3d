@@ -38,29 +38,11 @@ int main()
 {
     std::cout << "Hello there" << std::endl;
     glfwInit();
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    // Pyramid like triangle
-    std::vector<float> vertices = {
-        -0.5f, -0.5f, 0.0f,
-        0.5f, -0.5f, 0.0f,
-        0.0f,0.5f, 0.0f,
-    };
 
-    /* Shaders setup */
-    auto triangle = Vertex_Shader(vertices, Shaders::basic);
-    assert(triangle.compile());
-
-    auto color = Fragment_Shader(Shaders::Fragments::yellow);
-    assert(color.compile());
-
-    Program_Shader p;
-    p.attach_shader(triangle);
-    p.attach_shader(color);
-    assert(p.link());
-    p.use();
 
     GLFWwindow* window = glfwCreateWindow(800, 600, "LearnOpenGL", NULL, NULL);
     if (window == NULL)
@@ -73,16 +55,68 @@ int main()
     glViewport(0,0,800,600);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
+    // Pyramid like triangle
+//    Point bottom_left = {-0.5f, -0.5f, 0.0f};
+//    Point bottom_right = {0.5f, -0.5f, 0.0f};
+//    Point up = {0.0f,0.5f, 0.0f};
+//
+//    Shape<Point<float, 3>, 3> triangle_shape = {bottom_left, bottom_right, up};
+    /* Shaders setup */
+
+    //TODO: instead of directly passing the vertices, use and intermediate
+    //templated object that takes care fo the funny stuff
+    //(glVertexAttribPointer,...).
+    std::vector<float> vertices = {
+        -0.5f, -0.5f, 0.0f,
+        0.5f, -0.5f, 0.0f,
+        0.0f,0.5f, 0.0f,
+    };
+
+
+    Vertex_Shader<float> triangle = Vertex_Shader(vertices, Shaders::basic);
+    int success = triangle.compile();
+    if (!success)
+    {
+        std::cout << triangle.get_compile_error() << std::endl;
+    }
+
+    Fragment_Shader color = Fragment_Shader(Shaders::Fragments::orange);
+    success = color.compile();
+    if (!success)
+    {
+        std::cout << color.get_compile_error() << std::endl;
+    }
+
+    Program_Shader p;
+    p.attach_shader(triangle);
+    p.attach_shader(color);
+    success = p.link();
+    if (!success)
+    {
+        std::cout << p.get_link_error() << std::endl;
+    }
+    p.detach_shader(triangle);
+    p.detach_shader(color);
+//    p.delete_shader(triangle);
+//    p.delete_shader(color);
+
+
+    p.set_VAO(triangle);
     /* Main loop */
     while(!glfwWindowShouldClose(window))
     {
         processInput(window);
+
+        /* Backgroung color */
         glClearColor(0.2f, current_color, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
+        /* Draw an orange triangle. */
+        p.use();
+        p.draw();
+
         glfwSwapBuffers(window);
         glfwPollEvents();
-        std::cout << "Color : " << current_color << std::endl;
     }
 
     glfwTerminate();

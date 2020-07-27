@@ -30,6 +30,7 @@ set(ADDITIONAL_CLEAN_FILES "${ADDITIONAL_CLEAN_FILES} ${SHADER_MANAGER_HEADER}")
 # Add standard switches
 add_compile_options("-Wall")
 add_compile_options("-Wextra")
+add_compile_options("-fno-exceptions")
 
 # Set the macro that points to the shader directory.
 add_definitions(-D__SHADERS_DIRECTORY=$(SHADERS_DIRECTORY))

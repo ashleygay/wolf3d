@@ -38,8 +38,8 @@ int main()
 {
     std::cout << "Hello there" << std::endl;
     glfwInit();
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
 
@@ -56,13 +56,13 @@ int main()
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
     // Pyramid like triangle
-//    Point bottom_left = {-0.5f, -0.5f, 0.0f};
-//    Point bottom_right = {0.5f, -0.5f, 0.0f};
-//    Point up = {0.0f,0.5f, 0.0f};
-//
-//    Shape<Point<float, 3>, 3> triangle_shape = {bottom_left, bottom_right, up};
-    /* Shaders setup */
+    Point bottom_left = {-0.5f, -0.5f, 0.0f};
+    Point bottom_right = {0.5f, -0.5f, 0.0f};
+    Point up = {0.0f,0.5f, 0.0f};
 
+    Shape<3> triangle_shape = {bottom_left, bottom_right, up};
+
+    /* Shaders setup */
     //TODO: instead of directly passing the vertices, use and intermediate
     //templated object that takes care fo the funny stuff
     //(glVertexAttribPointer,...).
@@ -72,7 +72,8 @@ int main()
         0.0f,0.5f, 0.0f,
     };
 
-
+    //TODO: automate the error handling on the compilation of the shaders and
+    //on the linking with the shader program.
     Vertex_Shader<float> triangle = Vertex_Shader(vertices, Shaders::basic);
     int success = triangle.compile();
     if (!success)
@@ -87,6 +88,8 @@ int main()
         std::cout << color.get_compile_error() << std::endl;
     }
 
+    //TODO: Create before the shaders and use a {} scope to automatically
+    //destroy the created shaders.
     Program_Shader p;
     p.attach_shader(triangle);
     p.attach_shader(color);
@@ -95,13 +98,15 @@ int main()
     {
         std::cout << p.get_link_error() << std::endl;
     }
+
+    //TODO: Do the following automatically in the shader destructor.
     p.detach_shader(triangle);
     p.detach_shader(color);
-//    p.delete_shader(triangle);
-//    p.delete_shader(color);
 
-
+    //TODO: Figure out a better way to do that.
+    //Create another method than attach_shader() ?
     p.set_VAO(triangle);
+
     /* Main loop */
     while(!glfwWindowShouldClose(window))
     {
@@ -112,6 +117,7 @@ int main()
         glClear(GL_COLOR_BUFFER_BIT);
 
         /* Draw an orange triangle. */
+        //TODO: Okay for now ?
         p.use();
         p.draw();
 

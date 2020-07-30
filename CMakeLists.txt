@@ -15,7 +15,7 @@ add_custom_command (OUTPUT "${SHADER_MANAGER_HEADER}"
 	            COMMAND
 		    ${CMAKE_CURRENT_SOURCE_DIR}/scripts/patch_shader_manager.py
 		    ${SHADERS_DIRECTORY}
-		    ${CMAKE_CURRENT_SOURCE_DIR}/src/shader_manager/shader_manager.topatch
+		    ${CMAKE_CURRENT_SOURCE_DIR}/src/shader_manager/shader_manager.hpp_to_patch
                     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/)
 
 add_custom_target(

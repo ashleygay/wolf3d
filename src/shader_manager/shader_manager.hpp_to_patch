@@ -6,22 +6,16 @@
 #include <cstring>
 
 #include <GLFW/glfw3.h>
-    /* 
-     * We want to statically embed all shaders in the `shaders` directory.
-     * We can only embed the code of the shader and not the shader object
-     * itself. The shader object compilation can be affected by a myriad of
-     * things and its really not a good idea to try to be smart about it.
-     * The only `optimization` we do is precompile all shaders at startup.
-
-     * We probably need to use `xxd` to extract text from the files.
-     * We also probably need some tomfoolery to patch the shader manager.
-     * We can do it in cmake or in python (I'd prefer this approach as it has more
-     * chances of being portable ?)
-     */
-
-
 
 using GL_ID = unsigned int;
+
+//TODO: Create a generic glObject class
+// Templated by the type of what we create exactly
+// (Vertex_Shader, Fragment_Shader, Shader_Program,...)
+// All of the classes below inherit from it in different ways
+// Allows us a common interface to operate on glObject's
+// (For example for getting the error message of an operation)
+// Does it have a generic do_action<T> method ?
 
 class Abstract_Shader
 {
@@ -54,8 +48,13 @@ class Abstract_Shader
             return log;
         }
 
-        //TODO: Put delete in the destructor.
-
+        //TODO: Where do we put detach() ?
+        ~Abstract_Shader()
+        {
+            //TODO: Deletion of a shader can fail, we need to get the error
+            //message with glGetProgramiv.
+            glDeleteShader(_shader);
+        }
     private:
         const GL_ID _shader;
         std::string _code;
@@ -65,10 +64,10 @@ template <typename T>
 concept Floating_Point = std::is_floating_point_v<T>;
 
 template <Floating_Point F = float,
-          size_t Dimensions = 3>
+          size_t _Dimensions = 3>
 class Point
 {
-    using Container = std::array<F, Dimensions>;
+    using Container = std::array<F, _Dimensions>;
     public:
         constexpr Point(const Container& coordinates)
             : _coordinates(coordinates)
@@ -77,16 +76,19 @@ class Point
         constexpr Point(const F& x, const F& y, const F& z)
             : _coordinates({x, y , z})
         {}
+    static const size_t Dimensions = _Dimensions;
     private:
         const Container _coordinates;
 };
 
-template <typename P, size_t _Sides = 3>
+template <size_t _Sides, typename P = Point<float, 3>>
 class Shape
 {
     using Container = std::array<P, _Sides>;
     public:
-        template <typename ...Arg>
+        template <typename ...Arg,
+                //We limit the number of arguments the constructor of Shape can take.
+                std::enable_if_t<(sizeof...(Arg) == _Sides)>* = nullptr>
         Shape(Arg&& ...arguments)
             : points({std::move(arguments)...})
         {
@@ -98,7 +100,7 @@ class Shape
         const Container points;
 };
 
-template <typename F>
+template <Floating_Point f>
 struct GL_ENUM
 {
     static const GLenum value;
@@ -116,12 +118,6 @@ struct GL_ENUM<double>
     static const GLenum value = GL_DOUBLE;
 };
 
-template <>
-struct GL_ENUM<short>
-{
-    static const GLenum value = GL_HALF_FLOAT;
-};
-
 //TODO: Template by a type of shape.
 template <Floating_Point f = float>
 class Vertex_Shader : public Abstract_Shader
@@ -137,16 +133,14 @@ class Vertex_Shader : public Abstract_Shader
 
             glBindVertexArray(VAO);
 
-            //TODO: replace by sizeof(Point.underlying_array)
             int buffer_size = vertices.size() * sizeof(f);
             // This will copy the data into the currently bound buffer, so in
             // our case, VBO.
             glBindBuffer(GL_ARRAY_BUFFER, VBO);
             glBufferData(GL_ARRAY_BUFFER, buffer_size, _vertices.data(), GL_STATIC_DRAW);
 
-            int vertex_stride = 3 * sizeof(f);
-            //TODO: replace 3 by Shape::Nb_Of_Sides
-            int components_nb = 3;
+            int vertex_stride = 3 * sizeof(f); //TODO: Replace 3 by Shape::Dimensions
+            int components_nb = 3; //TODO: Shape::Sides
             glVertexAttribPointer(0, components_nb, GL_ENUM<f>::value, GL_FALSE, vertex_stride, nullptr);
             glEnableVertexAttribArray(0);
 
@@ -191,11 +185,6 @@ class Program_Shader
             glDetachShader(prog, shader.get_shader_id());
         }
 
-        void delete_shader(const Abstract_Shader &shader)
-        {
-            glDeleteShader(shader.get_shader_id());
-        }
-
         void set_VAO(const Vertex_Shader<float> &shader)
         {
             VAO = shader.get_VAO();
@@ -222,9 +211,9 @@ class Program_Shader
 
         std::string get_link_error()
         {
-            char log[512];
-            glGetShaderInfoLog(prog, 512, NULL, log);
-            return std::string(log);
+            std::string log(512, ' ');
+            glGetShaderInfoLog(prog, log.length(), NULL, &log[0]);
+            return log;
         }
     private:
         GL_ID prog;

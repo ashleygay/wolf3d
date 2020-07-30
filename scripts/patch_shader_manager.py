@@ -2,11 +2,10 @@
 
 """
 The steps are the following :
-    - For each shader, generate the C equivalent with `xxd -i 'shader'.glsl > 'shader'.c`
-    - Import those C arrays into the std::aray inside the shader_manager class
-    - ????
-    - Profit.
+    - For each shader, we generate a string declaration
+    - The folder structure is transformed into a namespace structure
 """
+
 """
 IMPORTS
 """
@@ -55,7 +54,7 @@ shaders_directory = sys.argv[1]
 shader_files = get_shaders(shaders_directory)
 
 file_to_patch_name = sys.argv[2]
-patched_file_name = file_to_patch_name.replace("topatch", "hpp")
+patched_file_name = file_to_patch_name.replace("hpp_to_patch", "hpp")
 
 shaders = get_shaders(shaders_directory)
 

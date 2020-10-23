@@ -5,9 +5,17 @@
 
 #include <cstring>
 
-#include <GLFW/glfw3.h>
+#include <fmt/core.h>
 
 using GL_ID = unsigned int;
+
+struct GL_Draw_Parameters
+{
+    GLenum _mode;
+    GLint _first;
+    GLsizei _count;
+
+};
 
 //TODO: Create a generic glObject class
 // Templated by the type of what we create exactly
@@ -21,15 +29,15 @@ class Abstract_Shader
 {
     public:
 
-        Abstract_Shader (GL_ID shader, const std::string& code)
+       Abstract_Shader (GL_ID shader, const std::string& code)
         : _shader(shader), _code(code)
         {
         }
 
-        GL_ID get_shader_id() const { return _shader;} 
+        [[nodiscard]] GL_ID get_shader_id() const { return _shader;} 
         void set_code(const std::string& code) { _code = code;}
 
-        int compile() const
+        void compile() const
         {
             int success;
 
@@ -38,14 +46,16 @@ class Abstract_Shader
 
             glCompileShader(_shader);
             glGetShaderiv(_shader, GL_COMPILE_STATUS, &success);
-            return success;
-        }
 
-        std::string get_compile_error() const
-        {
             std::string log(512, ' ');
             glGetShaderInfoLog(_shader, log.length(), NULL, &log[0]);
-            return log;
+
+            if (!success) {
+                std::cout << "Shader compilation error : " << '\n';
+                std::cout << "Shader : " << _shader << '\n';
+                std::cout << "Log : " << log << '\n';
+                std::exit(1);
+            }
         }
 
         //TODO: Where do we put detach() ?
@@ -62,43 +72,6 @@ class Abstract_Shader
 
 template <typename T>
 concept Floating_Point = std::is_floating_point_v<T>;
-
-template <Floating_Point F = float,
-          size_t _Dimensions = 3>
-class Point
-{
-    using Container = std::array<F, _Dimensions>;
-    public:
-        constexpr Point(const Container& coordinates)
-            : _coordinates(coordinates)
-        {}
-
-        constexpr Point(const F& x, const F& y, const F& z)
-            : _coordinates({x, y , z})
-        {}
-    static const size_t Dimensions = _Dimensions;
-    private:
-        const Container _coordinates;
-};
-
-template <size_t _Sides, typename P = Point<float, 3>>
-class Shape
-{
-    using Container = std::array<P, _Sides>;
-    public:
-        template <typename ...Arg,
-                //We limit the number of arguments the constructor of Shape can take.
-                std::enable_if_t<(sizeof...(Arg) == _Sides)>* = nullptr>
-        Shape(Arg&& ...arguments)
-            : points({std::move(arguments)...})
-        {
-        }
-        
-    static const size_t Nb_Of_Sides = _Sides; 
-    private:
-
-        const Container points;
-};
 
 template <Floating_Point f>
 struct GL_ENUM
@@ -118,51 +91,94 @@ struct GL_ENUM<double>
     static const GLenum value = GL_DOUBLE;
 };
 
-//TODO: Template by a type of shape.
-template <Floating_Point f = float>
+template <Floating_Point F = float>
+struct __attribute__ ((packed)) Vertex
+{
+    F x;
+    F y;
+    F z;
+    using value_type = F;
+};
+
+//TODO: Look into the ContiguousContainer and SequenceContainer concepts in cppreference
+//Basically, we want to be able to pass a vector or an array
+template <typename Vertex_Container>
 class Vertex_Shader : public Abstract_Shader
 {
-    using Container = std::vector<f>;
+    // We don't really care about the container used, all we need is the
+    // following :
+    // - a .data() function to access the underlying representation
+    // - a .size() function that gives us the number of elements
+    // - a way to get the size in bytes of the type represented (eg, sizeof(tab[0]))
+    // use requires to check for that (for details see Jason Turner vid about
+    // introspection)
     public:
-        Vertex_Shader(const Container &vertices, const std::string& code)
+        Vertex_Shader(const std::string& code,
+                      const Vertex_Container &vertices,
+                      const std::vector<unsigned int> &indices = {})
             : Abstract_Shader(glCreateShader(GL_VERTEX_SHADER), code)
         {
-            _vertices = vertices;
+            using Vertex_Pointer_Type = std::decay<Vertex_Container>::type;
+            using Vertex_Type = std::remove_pointer<Vertex_Pointer_Type>::type;
+            using Vertex_Templated_Type = Vertex_Type::value_type;
+
             glGenVertexArrays(1, &VAO);
             glGenBuffers(1, &VBO);
+            glGenBuffers(1, &EBO);
 
+            //TODO: is it worth it to do a lot of overloads
             glBindVertexArray(VAO);
-
-            int buffer_size = vertices.size() * sizeof(f);
-            // This will copy the data into the currently bound buffer, so in
-            // our case, VBO.
             glBindBuffer(GL_ARRAY_BUFFER, VBO);
-            glBufferData(GL_ARRAY_BUFFER, buffer_size, _vertices.data(), GL_STATIC_DRAW);
 
-            int vertex_stride = 3 * sizeof(f); //TODO: Replace 3 by Shape::Dimensions
-            int components_nb = 3; //TODO: Shape::Sides
-            glVertexAttribPointer(0, components_nb, GL_ENUM<f>::value, GL_FALSE, vertex_stride, nullptr);
+            // We just need something that returns an element for the call so
+            // sizeof(), as it will not get executed only the return type will
+            // get used.
+            //
+            GLint buffer_size = 3 * sizeof(Vertex_Type);
+            glNamedBufferData(VBO, buffer_size, vertices, GL_STATIC_DRAW);
+
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+                         indices.size() * sizeof(Vertex_Templated_Type),
+                         indices.data(),
+                         GL_STATIC_DRAW);
+
+            //GLint vertex_stride = 0; // we let opengl figure it out
+            GLint vertex_stride = sizeof(Vertex_Type);
+            GLint components_nb = 3; //TODO: depending on the container ???
+            glVertexAttribPointer(0,
+                                  components_nb,
+                                  GL_ENUM<Vertex_Templated_Type>::value,
+                                  GL_FALSE,
+                                  vertex_stride,
+                                  nullptr);
             glEnableVertexAttribArray(0);
 
-            glBindBuffer(GL_ARRAY_BUFFER, 0);
-            glBindVertexArray(0);
+            // components_nb and enum are linked ????
+            //_parameters = {GLtriangles , index, components_nb};
+            //// Conditions to take into account for the functions are :
+            //  - do we pass indices ?
+            //  - number of components
+            //  - that's it ???
+            //_content_passed_to_PS.draw_function = switch ()
         }
 
-        GL_ID get_VAO() const {return VAO;}
+        [[nodiscard]] GL_ID get_VAO() const {return VAO;}
     private:
         /* TODO: Do we want to create another GL_ID class that we could
          * constify here and that would itself call glGen*() ?
          */
-        GL_ID VBO;
+        //GL_ID_VA;
+        //GL_ID_BUFFER;
         GL_ID VAO;
-
-        Container _vertices;
+        GL_ID VBO;
+        GL_ID EBO;
 };
 
 class Fragment_Shader : public Abstract_Shader
 {
     public:
-        Fragment_Shader(const std::string &code)
+        explicit Fragment_Shader(const std::string &code)
             : Abstract_Shader(glCreateShader(GL_FRAGMENT_SHADER), code)
         {}
 };
@@ -175,49 +191,77 @@ class Program_Shader
             prog = glCreateProgram();
         }
 
-        void attach_shader(const Abstract_Shader &shader)
-        {
-            glAttachShader(prog, shader.get_shader_id());
-        }
-
-        void detach_shader(const Abstract_Shader &shader)
-        {
-            glDetachShader(prog, shader.get_shader_id());
-        }
-
-        void set_VAO(const Vertex_Shader<float> &shader)
-        {
-            VAO = shader.get_VAO();
-        }
-
-        void use()
+        void use() const
         {
             glUseProgram(prog);
         }
 
-        void draw()
+        void draw() const
         {
-            glBindVertexArray(VAO);
-            glDrawArrays(GL_TRIANGLES, 0, 3);
+                glBindVertexArray(_VAO);
+                //TODO: store the function to call in the VAO object
+                // - list all the draw functions
+                // - do we check ???
+                // - compile time checks how ??
+                // - do we check when passing to the program_shader
+                // - do we even need a program_shader class
+                // glBindVertexArray(vertex.VAO);
+                // second parameter is the starting index in the array (zeros most of the time ??)
+                // third parameter is the number of indices to be rendered
+                // vertex.draw_function(GL_ENUM mode, GLint first, GLsizei count);
+                glDrawArrays(GL_TRIANGLES, 0, 3);
+                //glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
         }
 
-        int link()
+
+        template <typename VS, typename S>
+        class Link_Lifetime
         {
+
+            public:
+                Link_Lifetime(GL_ID prog, const VS& vertex_shader, const S& shader)
+                    : _prog(prog),
+                      _vertex_shader(vertex_shader.get_shader_id()),
+                      _shader(shader.get_shader_id())
+                {
+                    glAttachShader(_prog, _vertex_shader);
+                    glAttachShader(_prog, _shader);
+
+                }
+                ~Link_Lifetime()
+                {
+                    glDetachShader(_prog, _shader);
+                    glDetachShader(_prog, _vertex_shader);
+                }
+            private:
+                GL_ID _prog;
+                GL_ID _vertex_shader;
+                GL_ID _shader;
+        };
+
+
+        template <typename Vertex_Shader, typename Shader>
+        void link(const Vertex_Shader& v, const Shader& s)
+        {
+
+            Link_Lifetime l(prog, v, s);
             int success;
             glLinkProgram(prog);
             glGetProgramiv(prog, GL_LINK_STATUS, &success);
-            return success;
-        }
 
-        std::string get_link_error()
-        {
             std::string log(512, ' ');
             glGetShaderInfoLog(prog, log.length(), NULL, &log[0]);
-            return log;
+
+            if (!success) {
+                throw std::logic_error(fmt::format("Program shader {}\nlink error : {}.", prog, log));
+            }
+            // Linkage is successful.
+            _VAO = v.get_VAO();
         }
+
     private:
         GL_ID prog;
-        GL_ID VAO;
+        GL_ID _VAO;
 };
 
 @@SHADERS@@

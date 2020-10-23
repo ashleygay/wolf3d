@@ -2,6 +2,8 @@
 #include <iostream>
 #include <cassert>
 
+#include <fmt/core.h>
+
 /* OpenGL includes */
 
 /*
@@ -10,6 +12,10 @@
  */
 #define GL_GLEXT_PROTOTYPES
 #include <GLFW/glfw3.h>
+
+//#include <GL/gl.h>
+//#include <GL/glext.h>
+
 
 /* Project includes */
 #include <shader_manager.hpp>
@@ -27,22 +33,19 @@ void processInput(GLFWwindow *window)
     if(glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
 
-    if(glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
+    if(glfwGetKey(window, GLFW_KEY_K) == GLFW_PRESS)
         current_color += 0.01f;
 
-    if(glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
+    if(glfwGetKey(window, GLFW_KEY_J) == GLFW_PRESS)
         current_color -= 0.01f;
 }
 
 int main()
 {
-    std::cout << "Hello there" << std::endl;
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-
 
     GLFWwindow* window = glfwCreateWindow(800, 600, "LearnOpenGL", NULL, NULL);
     if (window == NULL)
@@ -56,56 +59,58 @@ int main()
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
     // Pyramid like triangle
-    Point bottom_left = {-0.5f, -0.5f, 0.0f};
-    Point bottom_right = {0.5f, -0.5f, 0.0f};
-    Point up = {0.0f,0.5f, 0.0f};
-
-    Shape<3> triangle_shape = {bottom_left, bottom_right, up};
-
     /* Shaders setup */
-    //TODO: instead of directly passing the vertices, use and intermediate
-    //templated object that takes care fo the funny stuff
-    //(glVertexAttribPointer,...).
-    std::vector<float> vertices = {
-        -0.5f, -0.5f, 0.0f,
-        0.5f, -0.5f, 0.0f,
-        0.0f,0.5f, 0.0f,
-    };
+//    std::vector<double> vertices_triangle_right = 
+//    {
+//        0.5, 0.5, 0.0, // top right
+//        0.5, -0.45, 0.0, // bottom right right
+//        -0.45, 0.5, 0.0, // top left right
+//    };
 
-    //TODO: automate the error handling on the compilation of the shaders and
-    //on the linking with the shader program.
-    Vertex_Shader<float> triangle = Vertex_Shader(vertices, Shaders::basic);
-    int success = triangle.compile();
-    if (!success)
+    Vertex<float> avertices_triangle_right[] =
     {
-        std::cout << triangle.get_compile_error() << std::endl;
-    }
+        {0.5, 0.5, 0.0}, // top right
+        {0.5, -0.45, 0.0}, // bottom right right
+        {-0.45, 0.5, 0.0} // top left right
+     };
 
-    Fragment_Shader color = Fragment_Shader(Shaders::Fragments::orange);
-    success = color.compile();
-    if (!success)
+//    std::vector<double> vertices_triangle_left = 
+//    {
+//        0.45, -0.5, 0.0, // bottom right left
+//        -0.5, -0.5, 0.0,// bottom left
+//        -0.5, 0.45, 0.0, // top left left
+//    };
+
+    Vertex<float> avertices_triangle_left[] = 
     {
-        std::cout << color.get_compile_error() << std::endl;
-    }
+         { 0.45, -0.5, 0.0}, // bottom right left
+         { -0.5, -0.5, 0.0},// bottom left
+         { -0.5, 0.45, 0.0}, // top left left
+     };
 
-    //TODO: Create before the shaders and use a {} scope to automatically
-    //destroy the created shaders.
-    Program_Shader p;
-    p.attach_shader(triangle);
-    p.attach_shader(color);
-    success = p.link();
-    if (!success)
+    Program_Shader p1;
+    Program_Shader p2;
     {
-        std::cout << p.get_link_error() << std::endl;
+    
+        Vertex_Shader right = Vertex_Shader(Shaders::basic, avertices_triangle_right);
+        right.compile();
+
+        Vertex_Shader left = Vertex_Shader(Shaders::basic, avertices_triangle_left);
+        left.compile();
+
+        // TODO: Filter points with a lambda ?
+        Fragment_Shader color_orange = Fragment_Shader(Shaders::Fragments::orange);
+        color_orange.compile();
+
+        Fragment_Shader color_blue = Fragment_Shader(Shaders::Fragments::blue);
+        color_blue.compile();
+
+        p1.link(left, color_blue);
+        p2.link(right, color_orange);
+
     }
-
-    //TODO: Do the following automatically in the shader destructor.
-    p.detach_shader(triangle);
-    p.detach_shader(color);
-
-    //TODO: Figure out a better way to do that.
-    //Create another method than attach_shader() ?
-    p.set_VAO(triangle);
+    //TODO: change line smothness and width (GL_LINE_WIDTH and GL_LINE_SMOOTH)
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
     /* Main loop */
     while(!glfwWindowShouldClose(window))
@@ -116,10 +121,11 @@ int main()
         glClearColor(0.2f, current_color, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        /* Draw an orange triangle. */
-        //TODO: Okay for now ?
-        p.use();
-        p.draw();
+        p1.use();
+        p1.draw();
+
+        p2.use();
+        p2.draw();
 
         glfwSwapBuffers(window);
         glfwPollEvents();

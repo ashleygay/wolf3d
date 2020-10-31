@@ -11,7 +11,6 @@ add_compile_options("-Wall")
 add_compile_options("-Wextra")
 add_compile_options("-Wunused-result")
 add_compile_options("-Wpessimizing-move")
-add_compile_options("-fconcepts")
 add_compile_options("-g")
 
 
@@ -47,7 +46,12 @@ add_custom_command (OUTPUT "${SHADER_MANAGER_HEADER}"
 
 add_custom_command (OUTPUT "${STATIC_ANALYSIS_RESULTS}"
 	            COMMAND
-		    cppcheck --std=c++20 --enable=all --verbose --project=${CMAKE_CURRENT_SOURCE_DIR}/compile_commands.json > ${CMAKE_CURRENT_SOURCE_DIR}/cppcheck_results.txt)
+		    cppcheck
+		    --std=c++20
+		    --enable=all
+		    --verbose
+		    --project=${CMAKE_CURRENT_SOURCE_DIR}/compile_commands.json 2>&1
+		    | tee ${CMAKE_CURRENT_SOURCE_DIR}/cppcheck_results.txt)
 
 add_custom_target(
   patch_shader_manager

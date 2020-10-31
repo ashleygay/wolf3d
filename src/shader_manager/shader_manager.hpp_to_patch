@@ -97,30 +97,37 @@ struct __attribute__ ((packed)) Vertex
     F x;
     F y;
     F z;
+    static constexpr size_t components_nb = 3;
     using value_type = F;
 };
 
-//TODO: Look into the ContiguousContainer and SequenceContainer concepts in cppreference
-//Basically, we want to be able to pass a vector or an array
-template <typename Vertex_Container>
+// The `data()` method should return a pointer of the templated value.
+template<typename T>
+concept Has_Data_Operator = requires(T a) {
+    { a.data() } -> std::convertible_to<
+                        typename std::add_pointer<
+                            typename T::value_type
+                        >::type
+                    >;
+};
+
+template<typename T>
+concept Has_Size_Operator = requires(T a) {
+    { a.size() } -> std::convertible_to<std::size_t>;
+};
+
+template <typename T>
+    requires Has_Size_Operator<T> && Has_Data_Operator<T>
 class Vertex_Shader : public Abstract_Shader
 {
-    // We don't really care about the container used, all we need is the
-    // following :
-    // - a .data() function to access the underlying representation
-    // - a .size() function that gives us the number of elements
-    // - a way to get the size in bytes of the type represented (eg, sizeof(tab[0]))
-    // use requires to check for that (for details see Jason Turner vid about
-    // introspection)
     public:
         Vertex_Shader(const std::string& code,
-                      const Vertex_Container &vertices,
+                      const T &vertices,
                       const std::vector<unsigned int> &indices = {})
             : Abstract_Shader(glCreateShader(GL_VERTEX_SHADER), code)
         {
-            using Vertex_Pointer_Type = std::decay<Vertex_Container>::type;
-            using Vertex_Type = std::remove_pointer<Vertex_Pointer_Type>::type;
-            using Vertex_Templated_Type = Vertex_Type::value_type;
+            using Vertex_Type = T::value_type;
+            using Floating_Point_Type = Vertex_Type::value_type;
 
             glGenVertexArrays(1, &VAO);
             glGenBuffers(1, &VBO);
@@ -130,31 +137,26 @@ class Vertex_Shader : public Abstract_Shader
             glBindVertexArray(VAO);
             glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
-            // We just need something that returns an element for the call so
-            // sizeof(), as it will not get executed only the return type will
-            // get used.
-            //
-            GLint buffer_size = 3 * sizeof(Vertex_Type);
-            glNamedBufferData(VBO, buffer_size, vertices, GL_STATIC_DRAW);
+            const GLint buffer_size = vertices.size() * sizeof(Vertex_Type);
+            glNamedBufferData(VBO, buffer_size, vertices.data(), GL_STATIC_DRAW);
 
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
             glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-                         indices.size() * sizeof(Vertex_Templated_Type),
+                         indices.size() * sizeof(Floating_Point_Type),
                          indices.data(),
                          GL_STATIC_DRAW);
 
-            //GLint vertex_stride = 0; // we let opengl figure it out
-            GLint vertex_stride = sizeof(Vertex_Type);
-            GLint components_nb = 3; //TODO: depending on the container ???
+            constexpr GLint vertex_stride = sizeof(Vertex_Type);
+
+            constexpr GLint components_nb = Vertex_Type::components_nb; 
             glVertexAttribPointer(0,
                                   components_nb,
-                                  GL_ENUM<Vertex_Templated_Type>::value,
+                                  GL_ENUM<Floating_Point_Type>::value,
                                   GL_FALSE,
                                   vertex_stride,
                                   nullptr);
             glEnableVertexAttribArray(0);
 
-            // components_nb and enum are linked ????
             //_parameters = {GLtriangles , index, components_nb};
             //// Conditions to take into account for the functions are :
             //  - do we pass indices ?
@@ -168,8 +170,8 @@ class Vertex_Shader : public Abstract_Shader
         /* TODO: Do we want to create another GL_ID class that we could
          * constify here and that would itself call glGen*() ?
          */
-        //GL_ID_VA;
-        //GL_ID_BUFFER;
+        //GL_ID _VA;
+        //GL_ID _BUFFER;
         GL_ID VAO;
         GL_ID VBO;
         GL_ID EBO;

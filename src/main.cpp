@@ -58,47 +58,31 @@ int main()
     glViewport(0,0,800,600);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
-    // Pyramid like triangle
     /* Shaders setup */
-//    std::vector<double> vertices_triangle_right = 
-//    {
-//        0.5, 0.5, 0.0, // top right
-//        0.5, -0.45, 0.0, // bottom right right
-//        -0.45, 0.5, 0.0, // top left right
-//    };
-
-    Vertex<float> avertices_triangle_right[] =
+    std::vector<Vertex<double>> vertices_triangle_right = 
     {
         {0.5, 0.5, 0.0}, // top right
         {0.5, -0.45, 0.0}, // bottom right right
-        {-0.45, 0.5, 0.0} // top left right
-     };
+        {-0.45, 0.5, 0.0}, // top left right
+    };
 
-//    std::vector<double> vertices_triangle_left = 
-//    {
-//        0.45, -0.5, 0.0, // bottom right left
-//        -0.5, -0.5, 0.0,// bottom left
-//        -0.5, 0.45, 0.0, // top left left
-//    };
-
-    Vertex<float> avertices_triangle_left[] = 
-    {
-         { 0.45, -0.5, 0.0}, // bottom right left
-         { -0.5, -0.5, 0.0},// bottom left
-         { -0.5, 0.45, 0.0}, // top left left
-     };
+    std::array<Vertex<double>, 3> vertices_triangle_left = 
+    {{
+        {0.45, -0.5, 0.0}, // bottom right left
+        {-0.5, -0.5, 0.0},// bottom left
+        {-0.5, 0.45, 0.0}, // top left left
+    }};
 
     Program_Shader p1;
     Program_Shader p2;
     {
     
-        Vertex_Shader right = Vertex_Shader(Shaders::basic, avertices_triangle_right);
+        Vertex_Shader right = Vertex_Shader(Shaders::basic, vertices_triangle_right);
         right.compile();
 
-        Vertex_Shader left = Vertex_Shader(Shaders::basic, avertices_triangle_left);
+        Vertex_Shader left = Vertex_Shader(Shaders::basic, vertices_triangle_left);
         left.compile();
 
-        // TODO: Filter points with a lambda ?
         Fragment_Shader color_orange = Fragment_Shader(Shaders::Fragments::orange);
         color_orange.compile();
 
